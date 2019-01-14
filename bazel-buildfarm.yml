@@ -1,0 +1,144 @@
+#apiVersion: v1
+#kind: PersistentVolumeClaim
+#metadata:
+#  name: cas-cache
+#  annotations:
+#    volume.beta.kubernetes.io/storage-class: "aws-efs"
+#spec:
+#  accessModes:
+#  - ReadWriteMany
+#  resources:
+#    requests:
+#      storage: 100Gi
+#---
+apiVersion: apps/v1
+kind: Deployment 
+metadata:
+  name: bazel-server
+spec:
+  selector:
+    matchLabels:
+      app: bazel-server
+  template:
+    metadata:
+      labels:
+        app: bazel-server 
+    spec:
+      containers:
+      - name: bazel-server
+        resources:
+          requests:
+            memory: "20Gi"
+            cpu: 2
+        image: med1985/bazel-buildfarm
+        command:
+        - /bin/bash
+        - "-c"
+        - "/bazel-buildfarm/bazel-bin/src/main/java/build/buildfarm/buildfarm-server --jvm_flag=-Djava.util.logging.config.file=/bazel-buildfarm/examples/debug.logging.properties /bazel-buildfarm/examples/server.config.example -p 8080"
+        ports:
+        - name: server-port
+          containerPort: 8080
+        - name: debug-port
+          containerPort: 5005
+        env:
+        - name: BAZEL_SH
+          value: /bin/bash
+---
+apiVersion: apps/v1
+kind: Deployment 
+metadata:
+  name: bazel-worker
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: bazel-worker
+  template:
+    metadata:
+      labels:
+        app: bazel-worker
+    spec:
+      containers:
+      - name: worker
+        resources:
+          requests:
+            memory: 20Gi
+            cpu: 4
+        image: med1985/bazel-buildfarm
+        command:
+        - /bin/bash
+        - "-c"
+        - "sed -i 's/localhost:8980/bazel-server.default.svc.cluster.local:80/g' /bazel-buildfarm/examples/worker.config.example && bazel-buildfarm/bazel-bin/src/main/java/build/buildfarm/buildfarm-worker --jvm_flag=-Djava.util.logging.config.file=/bazel-buildfarm/examples/debug.logging.properties /bazel-buildfarm/examples/worker.config.example"
+#        - "sed -i 's/localhost:8980/ec2-3-8-29-11.eu-west-2.compute.amazonaws.com:8980/g' /bazel-buildfarm/examples/worker.config.example && bazel-buildfarm/bazel-bin/src/main/java/build/buildfarm/buildfarm-worker --jvm_flag=-Djava.util.logging.config.file=/bazel-buildfarm/examples/debug.logging.properties /bazel-buildfarm/examples/worker.config.example"
+        env:
+        - name: BAZEL_SH
+          value: /bin/bash
+        volumeMounts:
+        - name: workingdir
+          mountPath: /working
+        - name: cache
+          mountPath: /cache
+      volumes:
+      - name: workingdir
+        emptyDir: {}
+      - name: cache
+        emptyDir: {}
+#        persistentVolumeClaim:
+#          claimName: cas-cache
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bazel-server
+  labels:
+    app: bazel-server
+spec:
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  - port: 5005
+    targetPort: 5005
+    protocol: TCP
+    name: debug
+  selector:
+    app: bazel-server
+  type: LoadBalancer
+#---
+#kind: Service
+#apiVersion: v1
+#metadata:
+#  name: bazel-buildfarm
+#spec:
+#  selector:
+#    run: bazel-server
+#  ports:
+#  - protocol: TCP
+#    port: 80
+#    targetPort: 8080
+#  type: LoadBalancer
+#---
+#apiVersion: v1
+#kind: ConfigMap
+#metadata:
+#  name: tcp-services
+#  namespace: kube-ingress 
+#data:
+#  8080: "default/bazel-buildfarm:8080"
+#---
+#apiVersion: extensions/v1beta1
+#kind: Ingress
+#metadata:
+#  name: bazel-buildfarm
+#  annotations:
+#    nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
+#spec:
+#  rules:
+#  - host: bazel-buildfarm.bazel.com
+#    http:
+#      paths:
+#      - path: /
+#        backend:
+#          serviceName: bazel-buildfarm
+#          servicePort: 80

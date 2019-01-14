@@ -1,0 +1,108 @@
+apiVersion: v1
+items:
+- apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    annotations:
+      deployment.kubernetes.io/revision: "1"
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"apps/v1","kind":"Deployment","metadata":{"annotations":{},"name":"bazel-server","namespace":"default"},"spec":{"selector":{"matchLabels":{"app":"bazel-server"}},"template":{"metadata":{"labels":{"app":"bazel-server"}},"spec":{"containers":[{"command":["/bin/bash","-c","/bazel-buildfarm/bazel-bin/src/main/java/build/buildfarm/buildfarm-server --jvm_flag=-Djava.util.logging.config.file=/bazel-buildfarm/examples/debug.logging.properties /bazel-buildfarm/examples/server.config.example -p 8080"],"env":[{"name":"BAZEL_SH","value":"/bin/bash"}],"image":"med1985/bazel-buildfarm","name":"bazel-server","ports":[{"containerPort":8080}]},{"command":["/bin/bash","-c","sed -i 's/localhost:8980/localhost:8080/g' /bazel-buildfarm/examples/worker.config.example \u0026\u0026 bazel-buildfarm/bazel-bin/src/main/java/build/buildfarm/buildfarm-worker /bazel-buildfarm/examples/worker.config.example --root /working --cas_cache_directory /cache"],"env":[{"name":"BAZEL_SH","value":"/bin/bash"}],"image":"med1985/bazel-buildfarm","name":"worker","volumeMounts":[{"mountPath":"/working","name":"workingdir"},{"mountPath":"/cache","name":"cache"}]}],"volumes":[{"emptyDir":{},"name":"workingdir"},{"name":"cache","persistentVolumeClaim":{"claimName":"cas-cache"}}]}}}}
+    creationTimestamp: 2019-01-07T12:55:43Z
+    generation: 1
+    name: bazel-server
+    namespace: default
+    resourceVersion: "566288"
+    selfLink: /apis/extensions/v1beta1/namespaces/default/deployments/bazel-server
+    uid: 8b5dbb56-127b-11e9-aa4f-061307b24f20
+  spec:
+    progressDeadlineSeconds: 600
+    replicas: 1
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        app: bazel-server
+    strategy:
+      rollingUpdate:
+        maxSurge: 25%
+        maxUnavailable: 25%
+      type: RollingUpdate
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          app: bazel-server
+      spec:
+        containers:
+        - command:
+          - /bin/bash
+          - -c
+          - /bazel-buildfarm/bazel-bin/src/main/java/build/buildfarm/buildfarm-server
+            --jvm_flag=-Djava.util.logging.config.file=/bazel-buildfarm/examples/debug.logging.properties
+            /bazel-buildfarm/examples/server.config.example -p 8080
+          env:
+          - name: BAZEL_SH
+            value: /bin/bash
+          image: med1985/bazel-buildfarm
+          imagePullPolicy: Always
+          name: bazel-server
+          ports:
+          - containerPort: 8080
+            protocol: TCP
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+        - command:
+          - /bin/bash
+          - -c
+          - sed -i 's/localhost:8980/localhost:8080/g' /bazel-buildfarm/examples/worker.config.example
+            && bazel-buildfarm/bazel-bin/src/main/java/build/buildfarm/buildfarm-worker
+            /bazel-buildfarm/examples/worker.config.example --root /working --cas_cache_directory
+            /cache
+          env:
+          - name: BAZEL_SH
+            value: /bin/bash
+          image: med1985/bazel-buildfarm
+          imagePullPolicy: Always
+          name: worker
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /working
+            name: workingdir
+          - mountPath: /cache
+            name: cache
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        volumes:
+        - emptyDir: {}
+          name: workingdir
+        - name: cache
+          persistentVolumeClaim:
+            claimName: cas-cache
+  status:
+    availableReplicas: 1
+    conditions:
+    - lastTransitionTime: 2019-01-07T12:57:11Z
+      lastUpdateTime: 2019-01-07T12:57:11Z
+      message: Deployment has minimum availability.
+      reason: MinimumReplicasAvailable
+      status: "True"
+      type: Available
+    - lastTransitionTime: 2019-01-07T12:55:44Z
+      lastUpdateTime: 2019-01-07T12:57:11Z
+      message: ReplicaSet "bazel-server-75cc846745" has successfully progressed.
+      reason: NewReplicaSetAvailable
+      status: "True"
+      type: Progressing
+    observedGeneration: 1
+    readyReplicas: 1
+    replicas: 1
+    updatedReplicas: 1
+kind: List
+metadata:
+  resourceVersion: ""
+  selfLink: ""
